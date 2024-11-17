@@ -13,10 +13,15 @@ def root():
 @app.get("/market-overview")
 def market_overview():
     """Fetch overall market details from BSE"""
-    market_data = get_bse_market_overview()
-    if market_data:
-        return market_data
-    raise HTTPException(status_code=500, detail="Failed to fetch market overview data")
+    try:
+        market_data = get_bse_market_overview()
+        if market_data:
+            return market_data
+        else:
+            raise ValueError("No data returned by get_bse_market_overview")
+    except Exception as e:
+        print(f"Error in /market-overview endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/stock/{symbol}")
 def stock_details(symbol: str):

@@ -5,7 +5,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 
 def get_bse_market_overview():
-    """Scrapes overall market data like market capitalization from BSE using Selenium."""
+    """Scrape market data from BSE's All India Market Capitalization page using Selenium."""
     url = "https://www.bseindia.com/markets/equity/eqreports/allindiamktcap.aspx"
 
     # Set up Selenium WebDriver
@@ -19,34 +19,35 @@ def get_bse_market_overview():
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get(url)
 
-        # Wait for the page to load (adjust timeout as needed)
+        # Wait for the page to load fully (adjust timeout as needed)
         driver.implicitly_wait(10)
 
-        # Extract page source
+        # Extract page source after JavaScript execution
         html = driver.page_source
         driver.quit()
 
         # Parse the HTML using BeautifulSoup
         soup = BeautifulSoup(html, "lxml")
-        table = soup.find("table", {"class": "table table-bordered table-striped"})
+        table = soup.find("table", {"id": "ContentPlaceHolder1_gvData"})
         if not table:
-            raise ValueError("Market data table not found on the page.")
+            raise ValueError("Market data table not found.")
 
-        # Extract data from the table
+        # Extract rows from the table
         rows = table.find_all("tr")
-        market_data = {}
-        for row in rows:
-            cols = row.find_all("td")
-            if len(cols) == 2:
-                key = cols[0].get_text(strip=True)
-                value = cols[1].get_text(strip=True)
-                market_data[key] = value
+        if len(rows) < 2:
+            raise ValueError("No data rows found in the table.")
 
-        # Extract specific metrics
-        total_market_cap = market_data.get("All India Market Capitalisation (Rs.Cr)", "Data not available")
-        top_10_market_cap = market_data.get("Top 10 Companies Market Capitalisation (Rs.Cr.)", "Data not available")
+        # Parse the first data row
+        data_row = rows[1]
+        cells = data_row.find_all("td")
+
+        # Extract individual values
+        total_companies = cells[0].get_text(strip=True)
+        total_market_cap = cells[1].get_text(strip=True)
+        top_10_market_cap = cells[2].get_text(strip=True)
 
         return {
+            "total_companies": total_companies,
             "total_market_cap": total_market_cap,
             "top_10_market_cap": top_10_market_cap
         }
@@ -54,3 +55,7 @@ def get_bse_market_overview():
     except Exception as e:
         print(f"Error fetching market data: {e}")
         return None
+
+# if __name__ == "__main__":
+#     market_data = get_bse_market_overview()
+#     print("Market Overview Data:", market_data)
