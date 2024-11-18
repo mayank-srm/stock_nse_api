@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from market_scraper import get_bse_market_overview  # Import the market scraper function
+from market_scraper import get_bse_market_overview  # Import the scraper
 import yfinance as yf
 
 app = FastAPI()
@@ -14,10 +14,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Predefined stock symbols for Yahoo Finance
+# Predefined stock symbols (Yahoo Finance Ticker Format)
 STOCK_SYMBOLS = [
-    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
-    "HINDUNILVR.NS", "SBIN.NS", "BHARTIARTL.NS", "HDFC.NS", "ITC.NS"
+    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "BHARTIARTL.NS",
+    "ICICIBANK.NS", "INFY.NS", "SBIN.NS", "ITC.NS", "HINDUNILVR.NS", "HDFC.NS"
 ]
 
 def fetch_stock_data_yahoo(symbol: str):
@@ -36,34 +36,38 @@ def fetch_stock_data_yahoo(symbol: str):
         }
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
-        return None
+        return {
+            "symbol": symbol,
+            "price": 0.0,
+            "volume": 0,
+            "market_cap": 0,
+            "name": "Unknown"
+        }
 
 @app.get("/market-overview")
 def market_overview():
     """Fetch market overview details."""
     try:
-        # Get BSE market data
+        # Step 1: Get BSE market data
         bse_data = get_bse_market_overview()
 
-        # Fetch top 10 companies data from Yahoo Finance
+        # Step 2: Fetch stock data for top 10 companies
         stock_data = []
         for symbol in STOCK_SYMBOLS:
             stock = fetch_stock_data_yahoo(symbol)
-            if stock:
-                stock_data.append(stock)
+            stock_data.append(stock)
 
-        # Sort stocks by market cap
+        # Step 3: Sort and extract the top 10 companies
         sorted_stocks = sorted(stock_data, key=lambda x: x["market_cap"], reverse=True)
-
-        # Extract the top 10 companies
         top_10_companies = sorted_stocks[:10]
 
+        # Step 4: Construct the final response
         return {
             "as_on_date": bse_data["as_on_date"],
-            "total_companies": bse_data["total_companies"],
-            "total_market_cap": bse_data["total_market_cap"],
-            "top_10_market_cap": bse_data["top_10_market_cap"],
-            "top_10_companies": top_10_companies
+            "total_companies": int(bse_data["total_companies"]),  # Ensure integer
+            "total_market_cap": float(bse_data["total_market_cap"]),  # Ensure float
+            "top_10_market_cap": float(bse_data["top_10_market_cap"]),  # Ensure float
+            "top_10_companies": top_10_companies  # No change needed for the list
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching market overview: {e}")
